@@ -22,9 +22,9 @@
 #    F,A,B  draw forward
 #    f,a,b  move forward without drawing
 #    X,Y,Z,x,y,z do nothing
-#    +, -   rotate around the forward axis (x - roll)
+#    +, -   rotate around the forward axis (y - roll)
 #    /, \   rotate around the up axis (z - yaw)
-#    &, ^   rotate around the right axis (y - pitch)
+#    &, ^   rotate around the right axis (x - pitch)
 #    [, ]   push/pop stack
 #
 # Here are some ideas to implement from the existing blender Lsystem addon
@@ -136,9 +136,9 @@ F,A,B : Draw segment forward
 f,a,b : Move Forward without drawing
 X,Y,Z : No drawing result
 x,y,z : no drawing result
-+, - : rorate around forward axis (x - roll)
++, - : rorate around forward axis (y - roll)
 /, \ : rotate around up axis (z - yaw)
-&, ^ : rotate around right axis (y - pitch)
+&, ^ : rotate around right axis (x - pitch)
 [, ] : push/pop stack
 Q,P    : reserved
 """)
@@ -365,11 +365,11 @@ class LS_Turtle:
                 delta.rotate(dir)
                 pos = pos + delta
 
-            # +, - rotate around the forward axis (x - roll)
+            # +, - rotate around the forward axis (y - roll)
             elif (cur_sym == '+'):
-                dir = dir * mathutils.Euler((radians(self.compute_rotation_angle()),0,0)).to_quaternion()
+                dir = dir * mathutils.Euler((0,radians(self.compute_rotation_angle()),0)).to_quaternion()
             elif (cur_sym == '-'):
-                dir = dir * mathutils.Euler((radians(-self.compute_rotation_angle()),0,0)).to_quaternion()
+                dir = dir * mathutils.Euler((0,radians(-self.compute_rotation_angle()),0)).to_quaternion()
 
             # /, \ rotate around the up axis (z - yaw)
             elif (cur_sym == '/'):
@@ -377,11 +377,11 @@ class LS_Turtle:
             elif (cur_sym == '\\'):
                 dir = dir * mathutils.Euler((0,0,radians(-self.compute_rotation_angle()))).to_quaternion()
 
-            # &, ^ rotate around the right axis (y - pitch)
+            # &, ^ rotate around the right axis (x - pitch)
             elif (cur_sym == '&'):
-                dir = dir * mathutils.Euler((0,radians(self.compute_rotation_angle()),0)).to_quaternion()
+                dir = dir * mathutils.Euler((radians(self.compute_rotation_angle()),0,0)).to_quaternion()
             elif (cur_sym == '^'):
-                dir = dir * mathutils.Euler((0,radians(-self.compute_rotation_angle()),0)).to_quaternion()
+                dir = dir * mathutils.Euler((radians(-self.compute_rotation_angle()),0,0)).to_quaternion()
                 
             # [, ] push/pop stack
             elif (cur_sym == '['):
