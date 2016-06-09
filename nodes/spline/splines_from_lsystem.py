@@ -196,8 +196,8 @@ Q,P    : reserved
         self.newInput("Quaternion", "Initial Direction", "initial_direction", value=(0,0,1,0), hide=True)
         
         self.newInput("Integer", "Random Geometry Seed", "random_seed", hide=True)
-        self.newInput("Float", "Random Scale", "random_scale", value=1.0, minValue=0.0, hide=True)
-        self.newInput("Float", "Random Rotation", "random_rotation", value=1.0, minValue=0.0, hide=True)
+        self.newInput("Float", "Random Scale", "random_scale", value=0.0, minValue=0.0, hide=True)
+        self.newInput("Float", "Random Rotation", "random_rotation", value=0.0, minValue=0.0, hide=True)
         self.newInput("Integer", "Max Segments", "max_segments", value=0,minValue=0, hide=True)
         self.newInput("Integer", "Max Segments Error", "max_segments_error", value=10000, minValue=0, hide=True)        
 
