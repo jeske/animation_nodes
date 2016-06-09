@@ -234,6 +234,8 @@ Q,P    : reserved
         yield "turtle.num_generations_remainder = num_generations_remainder"
         yield "turtle.segment_length = segment_length"
         yield "turtle.rotation_angle = rotation_angle"
+        yield "turtle.random_scale = random_scale"
+        yield "turtle.random_rotation = random_rotation" 
 
 
         yield "try:"
@@ -312,8 +314,8 @@ class LS_Turtle:
         self.num_generations_remainder  = 0
         self.max_segments               = 0
         self.max_segments_error         = 100000         
-        self.random_scale_factor        = 0
-        self.random_rotation_factor     = 0
+        self.random_scale               = 0
+        self.random_rotation            = 0
         self.segment_length             = 1
         self.rotation_angle             = 1
         
@@ -322,9 +324,9 @@ class LS_Turtle:
         
     # here we compute segment and angle lenghts, possibly with random variation
     def compute_segment_length(self):
-        return self.segment_length * ( (self.rnd.random() * self.random_scale_factor) + 1)
+        return self.segment_length * ( (self.rnd.random() * self.random_scale) + 1)
     def compute_rotation_angle(self):
-        return self.rotation_angle * ( (self.rnd.random() * self.random_rotation_factor) + 1)
+        return self.rotation_angle * ( (self.rnd.random() * self.random_rotation) + 1)
 
 
     # convert() is the recursive parser which converts the turtle string into geometry
