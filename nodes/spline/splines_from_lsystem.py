@@ -313,7 +313,7 @@ class LS_Turtle:
         self.segment_count              = 0   
         self.num_generations_remainder  = 0
         self.max_segments               = 0
-        self.max_segments_error         = 100000         
+        self.max_segments_error         = 10000         
         self.random_scale               = 0
         self.random_rotation            = 0
         self.segment_length             = 1
