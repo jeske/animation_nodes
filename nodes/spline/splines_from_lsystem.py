@@ -4,11 +4,6 @@
 # TODO:
 #
 #  - fix multiple drawing symbols "FAB" / "fab"
-#  - add nice "error" messages during errors
-#     - when parsing bad rules
-#     - when max_segments_error reached 
-#  - fix "defaults" pulldown for preconfigured lsystems (add more?)
-#  - add some kind of docs tooltip, to show turtle vocabulary
 #  - add spline thickness 'radius' control, with taper
 #  - add per-spline point "orientation" before rotate (for smoothed splines)
 #  - make max_segments handle float, partially render last segment
@@ -126,6 +121,25 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
         name = "Preset", default = "KOCH_CURVE",
         items = lsystemPresetItems, update = presetChanged)
 
+    errorMessage = StringProperty()
+
+    def draw(self, layout):
+        layout.prop(self, "lsystemPreset", text = "Preset")
+        if self.errorMessage != "":
+            layout.label(self.errorMessage, icon = "ERROR")
+
+    def drawAdvanced(self, layout):
+        writeText(layout,
+"""L-System Rule Operators are:\n\n
+F,A,B : Draw segment forward
+f,a,b : Move Forward without drawing
++, - : rorate around forward axis (x - roll)
+/, \ : rotate around up axis (z - yaw)
+&, ^ : rotate around right axis (y - pitch)
+[, ] : push/pop stack
+""")
+
+
     def readDefault(self, property_id):
         base_value = baseDefaultValues[property_id]
         if self.lsystemPreset in presetValues and property_id in presetValues[self.lsystemPreset]:
@@ -183,28 +197,13 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
         self.newInput("Integer", "Max Segments", "max_segments", value=0,minValue=0, hide=True)
         self.newInput("Integer", "Max Segments Error", "max_segments_error", value=10000, minValue=0, hide=True)        
 
-        # outputs
-        self.newOutput("Float", "Value", "value")                        
+        # outputs                      
         self.newOutput("Spline List", "Splines", "splines")
         self.newOutput("String", "L-System String", "lsystem_string", hide=True)
         self.newOutput("Generic List", "Point Pairs", "point_pairs", hide=True)        
 
-    def draw(self, layout):
-        layout.prop(self, "lsystemPreset", text = "Preset")
-
-    def drawAdvanced(self, layout):
-        writeText(layout,
-"""L-System Rule Operators are:\n\n
-F,A,B : Draw segment forward
-f,a,b : Move Forward without drawing
-+, - : rorate around forward axis (x - roll)
-/, \ : rotate around up axis (z - yaw)
-&, ^ : rotate around right axis (y - pitch)
-[, ] : push/pop stack
-""")
-
-
     def getExecutionCode(self):
+        yield "self.errorMessage = ''"
         yield "if self.lsystemPreset != 'CUSTOM':"
         yield "    if axiom != self.readDefault('axiom') or \\"
         yield "           rule_1 != self.readDefault('rule_1') or \\"
@@ -221,9 +220,6 @@ f,a,b : Move Forward without drawing
         print(isLinked)
         
         yield "lsystem_string,num_generations_remainder = self.generateLSystem(axiom, [rule_1,rule_2,rule_3,rule_4,rule_5], num_generations)"
-        yield "splines = []"
-        yield "point_pairs = []"
-        yield "value = 5.0"
 
         yield "turtle = self.createTurtle(random_seed)"
         yield "turtle.max_segments = max_segments"
@@ -231,7 +227,15 @@ f,a,b : Move Forward without drawing
         yield "turtle.num_generations_remainder = num_generations_remainder"
         yield "turtle.segment_length = segment_length"
         yield "turtle.rotation_angle = rotation_angle"
-        yield "(curve, splines, remainder_string) = turtle.convert(lsystem_string,initial_position.copy(), initial_direction.copy())"
+
+        # define these empty in case there is an error...
+        yield "splines = []"
+        yield "point_pairs = []"
+
+        yield "try:"
+        yield "    (point_pairs, splines, remainder_string) = turtle.convert(lsystem_string,initial_position.copy(), initial_direction.copy())"
+        yield "except Exception as e:"
+        yield "    self.errorMessage = str(e)"
     
     def createTurtle(self, random_seed):
         return LS_Turtle(random_seed = random_seed)        
@@ -257,7 +261,7 @@ f,a,b : Move Forward without drawing
             if rule == "": continue
             m = re.match("^(?P<key>[^= ]+)=(?P<rule>[^= ]+)$",rule)
             if m is None:
-                self.errorMessage = "Malformed Rule: " + rule
+                self.errorMessage = "Malformed Rule: '%s'" % (rule)
             else:
                 rules_dict[m.group("key")] = m.group("rule")
         return rules_dict
@@ -272,9 +276,17 @@ def LSystem_Eval(axiom, rules_dict, num_generations_int, num_generations_remaind
         for cur_sym in axiom:
             if cur_sym in rules:
                 insert_text = rules[cur_sym]
-                # last generation
+                # last generation, make some replacements for partial drawing
                 if (i+1 == num_generations_int) and num_generations_remainder != 0.0:
-                    insert_text = insert_text.replace("F","P")                            
+                    if cur_sym not in "FAB":
+                        # replace every occurance
+                        insert_text = re.sub("[FAB]","P",insert_text)
+                    else:
+                        # retain one normal instance, so we only grow the "new" ones
+                        insert_text = re.sub(cur_sym, "Q", insert_text, count=1)  # replace one with a placeholder "Q"
+                        insert_text = re.sub("[FAB]", "P", insert_text)
+                        insert_text = re.sub("Q", cur_sym, insert_text, count=1)  # put "Q" back to normal...                                            
+                                                
                 output.append(insert_text)                
             else:
                 output.append(cur_sym)
