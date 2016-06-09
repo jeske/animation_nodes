@@ -1,5 +1,43 @@
 # Copyright (C) 2016 by David W. Jeske and donated to the public domain
 #
+#
+# TODO:
+#
+#  - fix multiple drawing symbols "FAB" / "fab"
+#  - add nice "error" messages during errors
+#     - when parsing bad rules
+#     - when max_segments_error reached 
+#  - fix "defaults" pulldown for preconfigured lsystems (add more?)
+#  - add some kind of docs tooltip, to show turtle vocabulary
+#  - add spline thickness 'radius' control, with taper
+#  - add per-spline point "orientation" before rotate (for smoothed splines)
+#  - make max_segments handle float, partially render last segment
+#
+# LATER TODO:
+#  - add leaf turtle commands (generate leaf pos/orientation list)
+#  - add more turtle commands (see Houdini docs)
+#     - add symbol variables  F(1,2,3)
+#     - add turtle command paramaters
+#
+#     http://archive.sidefx.com/docs/houdini10.0/nodes/sop/lsystem
+#     https://github.com/ento/blender-lsystem-addon
+#
+# Here are the implemented operators, inspired by Houdini and the blender lsystem addon
+#
+#    F,A,B  draw forward
+#    f,a,b  move forward without drawing
+#    +, -   rotate around the forward axis (x - roll)
+#    /, \   rotate around the up axis (z - yaw)
+#    &, ^   rotate around the right axis (y - pitch)
+#    [, ]   push/pop stack
+
+# Here are some ideas to implement from the existing blender Lsystem addon
+#
+#    (, ) push/pop alterative stack
+#    !, @ expand/srhink turtle stride
+#    #, % fatten/slink mesh radius
+#    ^, * greatly expand/srhink turtle stride
+#    =, | greatly fatten/slink mesh radius
 
 import math, re, random
 from math import radians
@@ -171,8 +209,9 @@ f,a,b : Move Forward without drawing
             if rule == "": continue
             m = re.match("^(?P<key>[^= ]+)=(?P<rule>[^= ]+)$",rule)
             if m is None:
-                raise Exception("Malformed Rule: " + rule)
-            rules_dict[m.group("key")] = m.group("rule")
+                self.errorMessage = "Malformed Rule: " + rule
+            else:
+                rules_dict[m.group("key")] = m.group("rule")
         return rules_dict
 
 #####################################################################################################
@@ -218,11 +257,14 @@ class LS_Turtle:
         self.rnd = random.Random()
         self.rnd.seed(random_seed)
         
+    # here we compute segment and angle lenghts, possibly with random variation
     def compute_segment_length(self):
         return self.segment_length * ( (self.rnd.random() * self.random_scale_factor) + 1)
     def compute_rotation_angle(self):
         return self.rotation_angle * ( (self.rnd.random() * self.random_rotation_factor) + 1)
 
+
+    # convert() is the recursive parser which converts the turtle string into geometry
     def convert(self,l_string, pos, dir):
         geometry = []
         spline_list = []
