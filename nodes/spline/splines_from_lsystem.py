@@ -21,6 +21,7 @@
 #
 #    F,A,B  draw forward
 #    f,a,b  move forward without drawing
+#    X,Y,Z,x,y,z do nothing
 #    +, -   rotate around the forward axis (x - roll)
 #    /, \   rotate around the up axis (z - yaw)
 #    &, ^   rotate around the right axis (y - pitch)
@@ -133,10 +134,13 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
 """L-System Rule Operators are:\n\n
 F,A,B : Draw segment forward
 f,a,b : Move Forward without drawing
+X,Y,Z : No drawing result
+x,y,z : no drawing result
 +, - : rorate around forward axis (x - roll)
 /, \ : rotate around up axis (z - yaw)
 &, ^ : rotate around right axis (y - pitch)
 [, ] : push/pop stack
+Q,P    : reserved
 """)
 
 
@@ -258,7 +262,7 @@ f,a,b : Move Forward without drawing
         rules_dict = {}
         for rule in rules_list:
             if rule == "": continue
-            m = re.match("^(?P<key>[^= ]+)=(?P<rule>[^= ]+)$",rule)
+            m = re.match("^(?P<key>[^=QP ]+)=(?P<rule>[^=QP]+)$",rule)
             if m is None:
                 self.errorMessage = "Malformed Rule: '%s'" % (rule)
             else:
@@ -346,9 +350,8 @@ class LS_Turtle:
                 geometry.append([pos, pos + delta])
                 spline_list.append(PolySpline.fromLocations([pos, pos+delta]))
                 pos = pos + delta
-
-            # upper case letters draw forward             
-            elif cur_sym.isupper():
+            # "FAB" letters draw forward             
+            elif cur_sym in "FAB":
                 self.segment_count+=1
                 delta = mathutils.Vector((0,0,-self.compute_segment_length()))
                 delta.rotate(dir)
@@ -356,8 +359,8 @@ class LS_Turtle:
                 spline_list.append(PolySpline.fromLocations([pos, pos+delta]))
                 pos = pos + delta
                 
-            # lower case letters move forward without drawing
-            elif cur_sym.islower():
+            # "fab" move forward without drawing
+            elif cur_sym in "fab":
                 delta = mathutils.Vector((0,0,-self.compute_segment_length()))
                 delta.rotate(dir)
                 pos = pos + delta
