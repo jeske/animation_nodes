@@ -429,6 +429,7 @@ class SplineMenu(bpy.types.Menu):
         layout.separator()
         insertNode(layout, "an_LoftSplinesNode", "Loft")
         insertNode(layout, "an_RevolveSplineNode", "Revolve")
+        insertNode(layout, "an_SplinesFromLSystemNode", "L-System")
 
 class AnimationMenu(bpy.types.Menu):
     bl_idname = "an_animation_menu"
