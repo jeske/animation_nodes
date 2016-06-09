@@ -242,6 +242,8 @@ Q,P    : reserved
         yield "    (point_pairs, splines, remainder_string) = turtle.convert(lsystem_string,initial_position.copy(), initial_direction.copy())"
         yield "except Exception as e:"
         yield "    self.errorMessage = str(e)"
+        yield "    import traceback"
+        yield "    traceback.print_exc()"
     
     def createTurtle(self, random_seed):
         return LS_Turtle(random_seed = random_seed)        
