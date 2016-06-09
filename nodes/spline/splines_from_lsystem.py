@@ -214,10 +214,13 @@ f,a,b : Move Forward without drawing
         yield "           rotation_angle != self.readDefault('rotation_angle'):"
         yield "        self.lsystemPreset = 'CUSTOM'" 
 
+        # define these empty in case there is an error...
+        yield "splines = []"
+        yield "point_pairs = []"
+
         isLinked = self.getLinkedOutputsDict()
-        # if not (isLinked["lsystem_string"] or isLinked["splines"] or isLinked["point_pairs"]):
-        #    return []
-        print(isLinked)
+        if not (isLinked["lsystem_string"] or isLinked["splines"] or isLinked["point_pairs"]):            
+            return
         
         yield "lsystem_string,num_generations_remainder = self.generateLSystem(axiom, [rule_1,rule_2,rule_3,rule_4,rule_5], num_generations)"
 
@@ -228,9 +231,6 @@ f,a,b : Move Forward without drawing
         yield "turtle.segment_length = segment_length"
         yield "turtle.rotation_angle = rotation_angle"
 
-        # define these empty in case there is an error...
-        yield "splines = []"
-        yield "point_pairs = []"
 
         yield "try:"
         yield "    (point_pairs, splines, remainder_string) = turtle.convert(lsystem_string,initial_position.copy(), initial_direction.copy())"
@@ -248,11 +248,10 @@ f,a,b : Move Forward without drawing
         (num_generations_remainder, num_generations_whole) = math.modf(num_generations_f)
         num_generations_int = int(num_generations_whole)
         if (num_generations_remainder > 0.0):
-            num_generations_int += 1
-        print("num_generations_int = %d, %s" % (num_generations_int,rules_dict))        
+            num_generations_int += 1                
 
         outstring = LSystem_Eval(axiom,rules_dict,num_generations_int, num_generations_remainder)
-        print("generateLSystem = " + outstring)
+        # print("generateLSystem = " + outstring)
         return outstring, num_generations_remainder
     
     def makeRulesDictFromInputs(self, rules_list):            
