@@ -30,7 +30,7 @@
 #    /, \   rotate around the up axis (z - yaw)
 #    &, ^   rotate around the right axis (y - pitch)
 #    [, ]   push/pop stack
-
+#
 # Here are some ideas to implement from the existing blender Lsystem addon
 #
 #    (, ) push/pop alterative stack
@@ -46,20 +46,24 @@ import bpy
 import mathutils
 from bpy.props import *
 from ... events import executionCodeChanged
+from ... tree_info import keepNodeLinks
 from ... utils.layout import writeText
 from ... base_types.node import AnimationNode
 from ... data_structures.splines.poly_spline import PolySpline
 
 lsystemPresetItems = [
-    ("KOCH_CURVE", "Koch Curve", ""),
-    ("SIERP_TRI", "Sierpinski triangle", ""),
+    ("KOCH_CURVE", "Koch Curve 2D", ""),
+    ("SIERP_TRI", "Sierpinski triangle 2D", ""),
+#    ("FRACT_PLNT", "Fractal Plant 2D", ""),
+    ("HILBERT_C", "Hilbert Curve 2D", ""),
+    ("CHAOT_SQR", "Chaotic Squares", ""),
+    ("TREE_1", "Tree 1", ""),    
     ("CUSTOM", "Custom", ""),
  ]
 
 baseDefaultValues = {
-	"num_generations" : 3,
-	"segment_length" : 1,
-    "rotation_angle" : 90,
+	"num_generations" : 3.0,
+    "rotation_angle" : 90.0,
     "axiom" : "F",    
     "rule_1" : "F=F+F-F-F+F", "rule_2" : "", "rule_3" : "", "rule_4" : "", "rule_5": "",
 }
@@ -69,12 +73,39 @@ presetValues = {
         "axiom" : "F",
         "rule_1" : "F=F+F-F-F+F",
         "rotation_angle" : 90,
+        "num_generations" : 2.0,
 	},
     "SIERP_TRI" : {
         "axiom" : "A",
         "rule_1" : "A=+B-A-B+", "rule_2" : "B=-A+B+A-",
         "rotation_angle" : 60,
-    }
+        "num_generations" : 4.0,
+    },
+    "FRACT_PLNT": { 
+        "axiom" : "A",
+        "rule_1" : "A=F-[[A]+A]+F[+FA]-A",
+        "rule_2" : "F=FF",
+        "rotation_angle" : 25,
+        "segment_length" : 0.1
+    },
+    "HILBERT_C" : { 
+        "axiom" : "A",
+        "rule_1" : "A=+BF-AFA-FB+",
+        "rule_2" : "B=-AF+BFB+FA-",
+        "rotation_angle" : 90,
+    },
+    "CHAOT_SQR" : { 
+        "axiom" : "FFFa",
+        "rule_1" : "a=F[+Fa]////[-^Fa]",
+        "rotation_angle" : 90,
+        "num_generations" : 5.0,
+    },
+    "TREE_1" : {
+        "axiom" : "FFFA",
+        "rule_1" : "A=[&FFFA]////[&FFFA]////[&FFFA]",
+        "rotation_angle" : 30,
+        "num_generations" : 4.0,
+    },    
 }
 
 
@@ -86,9 +117,10 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
     bl_idname = "an_SplinesFromLSystemNode"
     bl_label = "Splines from L-System"
 
-    def presetChanged(self,info):        
-        self.setDefaults()
-        executionCodeChanged(self,info)
+    def presetChanged(self,info):
+        if self.lsystemPreset != "CUSTOM":        
+            self.generateSockets()
+            executionCodeChanged(self,info)
 
     lsystemPreset = EnumProperty(
         name = "Preset", default = "KOCH_CURVE",
@@ -106,36 +138,46 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
                 return input
         return None
 
-    def setDefaults(self):    
-        print("load defaults for " + self.lsystemPreset)    
-        for k,v in baseDefaultValues.items():
-            self.getInputById(k).value = v
-        if self.lsystemPreset in presetValues.items():
-            for k,v in presetValues[self.lsystemPreset]:
-                self.getInputById(k).value = v
-        self.update()
+
+# This does not work for some reason
+#
+#    def setDefaults(self):    
+#        print("load defaults for " + self.lsystemPreset)    
+#        for k,v in baseDefaultValues.items():
+#            self.getInputById(k).value = v
+#        if self.lsystemPreset in presetValues.items():
+#            for k,v in presetValues[self.lsystemPreset]:
+#                self.getInputById(k).value = v
+    
     
     def create(self):
+        self.generateSockets()
+
+
+    @keepNodeLinks
+    def generateSockets(self):   
+        self.inputs.clear()
+        self.outputs.clear() 
         # (dataType, name, identifier, **kwargs)
 
         # rule inputs        
-        self.newInput("String", "Axiom", "axiom")
-        self.newInput("String", "Rule 1", "rule_1")
-        self.newInput("String", "Rule 2", "rule_2")
-        self.newInput("String", "Rule 3", "rule_3")
-        self.newInput("String", "Rule 4", "rule_4", hide = True)
-        self.newInput("String", "Rule 5", "rule_5", hide = True)
+        self.newInput("String", "Axiom", "axiom").value=self.readDefault("axiom")
+        self.newInput("String", "Rule 1", "rule_1").value = self.readDefault("rule_1")
+        self.newInput("String", "Rule 2", "rule_2").value = self.readDefault("rule_2")
+        self.newInput("String", "Rule 3", "rule_3").value = self.readDefault("rule_3")
+        self.newInput("String", "Rule 4", "rule_4", hide = True).value = self.readDefault("rule_4")
+        self.newInput("String", "Rule 5", "rule_5", hide = True).value = self.readDefault("rule_5")
 
         # visible inputs
-        self.newInput("Float", "Num Generations", "num_generations")
-        self.newInput("Float", "Segment Length", "segment_length")      
-        self.newInput("Float", "Rotation Angle", "rotation_angle", minValue=0.0, maxValue=360.0)  
+        self.newInput("Float", "Num Generations", "num_generations").value = self.readDefault("num_generations")
+        self.newInput("Float", "Segment Length", "segment_length").value = 1
+        self.newInput("Float", "Rotation Angle", "rotation_angle", minValue=0.0, maxValue=360.0).value=self.readDefault("rotation_angle")  
 
         # hidden inputs
         self.newInput("Vector", "Initial Position", "initial_position", hide=True)
         self.newInput("Quaternion", "Initial Direction", "initial_direction", value=(0,0,1,0), hide=True)
         
-        self.newInput("Integer", "Random Seed", "random_seed", hide=True)
+        self.newInput("Integer", "Random Geometry Seed", "random_seed", hide=True)
         self.newInput("Float", "Random Scale", "random_scale", value=1.0, minValue=0.0, hide=True)
         self.newInput("Float", "Random Rotation", "random_rotation", value=1.0, minValue=0.0, hide=True)
         self.newInput("Integer", "Max Segments", "max_segments", value=0,minValue=0, hide=True)
@@ -145,9 +187,7 @@ class SplinesFromLSystemNode(bpy.types.Node, AnimationNode):
         self.newOutput("Float", "Value", "value")                        
         self.newOutput("Spline List", "Splines", "splines")
         self.newOutput("String", "L-System String", "lsystem_string", hide=True)
-        self.newOutput("Generic List", "Point Pairs", "point_pairs", hide=True)
-
-        self.setDefaults()
+        self.newOutput("Generic List", "Point Pairs", "point_pairs", hide=True)        
 
     def draw(self, layout):
         layout.prop(self, "lsystemPreset", text = "Preset")
@@ -163,10 +203,18 @@ f,a,b : Move Forward without drawing
 [, ] : push/pop stack
 """)
 
+
     def getExecutionCode(self):
-        # if not in CUSTOM preset, and any inputs are changed or linked, switch to "CUSTOM" preset
-        # if in CUSTOM preset, save the input values (in case we need to restore them later)
-        
+        yield "if self.lsystemPreset != 'CUSTOM':"
+        yield "    if axiom != self.readDefault('axiom') or \\"
+        yield "           rule_1 != self.readDefault('rule_1') or \\"
+        yield "           rule_2 != self.readDefault('rule_2') or \\"
+        yield "           rule_3 != self.readDefault('rule_3') or \\"
+        yield "           rule_4 != self.readDefault('rule_4') or \\"
+        yield "           num_generations != self.readDefault('num_generations') or \\"
+        yield "           rotation_angle != self.readDefault('rotation_angle'):"
+        yield "        self.lsystemPreset = 'CUSTOM'" 
+
         isLinked = self.getLinkedOutputsDict()
         # if not (isLinked["lsystem_string"] or isLinked["splines"] or isLinked["point_pairs"]):
         #    return []
