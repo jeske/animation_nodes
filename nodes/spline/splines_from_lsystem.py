@@ -92,7 +92,7 @@ presetValues = {
     },
     "CHAOT_SQR" : { 
         "axiom" : "FFFa",
-        "rule_1" : "a=F[+Fa]////[-^Fa]",
+        "rule_1" : "a=F[+Fa][-^Fa]",
         "rotation_angle" : 90,
         "num_generations" : 5.0,
     },
