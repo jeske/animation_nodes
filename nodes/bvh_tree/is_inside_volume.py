@@ -1,13 +1,14 @@
+
+import sys
+epsilon = sys.float_info.epsilon
+
 import bpy
 from random import random
 from mathutils import Vector
 from ... base_types.node import AnimationNode
 
-# in some cases multiple tests have to done
-# to reduce the probability for errors
-direction1 = Vector((random(), random(), random())).normalized()
-direction2 = Vector((random(), random(), random())).normalized()
-direction3 = Vector((random(), random(), random())).normalized()
+# this is the initial random direction we'll try for raycasts...
+random_direction = Vector((random(), random(), random())).normalized()
 
 class IsInsideVolumeBVHTreeNode(bpy.types.Node, AnimationNode):
     bl_idname = "an_IsInsideVolumeBVHTreeNode"
@@ -19,24 +20,42 @@ class IsInsideVolumeBVHTreeNode(bpy.types.Node, AnimationNode):
         self.newOutput("Boolean", "Is Inside", "isInside")
 
     def execute(self, bvhTree, vector):
-        hits1 = self.countHits(bvhTree, vector, direction1)
-        if hits1 == 0: return False
-        if hits1 == 1: return True
+        # if the number of hits is odd, the point is inside a closed mesh
+        return (self.countHits(bvhTree,vector,random_direction) % 2) == 1
 
-        hits2 = self.countHits(bvhTree, vector, direction2)
-        if hits1 % 2 == hits2 % 2:
-            return hits1 % 2 == 1
-
-        hits3 = self.countHits(bvhTree, vector, direction3)
-        return hits3 % 2 == 1
+    # NOTE: this is the best we can do with the API blender gives us for
+    #       raycasts. Notably, after finding a hit, the only way to we coplanar
+    #       find another is "nudge forward" and retry. This is not guaranteed
+    #       to produce correct results in all cases.
 
     def countHits(self, bvhTree, start, direction):
         hits = 0
-        offset = direction * 0.0001
-        location = bvhTree.ray_cast(start, direction)[0]
+        cur = start.copy()
+        last_face_idx = -1
+        nudge_count = 0
+        MAX_NUDGES = 1
+        NUDGE_DISTANCE = 0.0001
 
-        while location is not None:
-            hits += 1
-            location = bvhTree.ray_cast(location + offset, direction)[0]
+        loc, normal, face_idx, distance = bvhTree.ray_cast(cur,direction)
+        while face_idx != None:
+            if nudge_count > MAX_NUDGES:
+                # if we nudge too many times, we are coplanar with a face
+                # pick a new direction and restart
+                direction = Vector((random(), random(), random())).normalized()
+                cur = start.copy()
+                hits = 0
+                nudge_count = 0
+                last_face_idx = -1
+            elif face_idx == last_face_idx:
+                # we are hitting the same face, nudge forward
+                cur += direction * NUDGE_DISTANCE
+                nudge_count += 1
+            elif face_idx != last_face_idx:
+                # we hit a new face, count it and search again
+                last_face_idx = face_idx
+                hits += 1
+                cur = loc.copy()
+
+            loc, normal, face_idx, distance = bvhTree.ray_cast(cur,direction)
 
         return hits
